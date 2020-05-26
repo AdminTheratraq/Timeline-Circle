@@ -113,7 +113,6 @@ export class Visual implements IVisual {
         this.footer = d3.select(options.element).append('div').attr('class', 'footer');
         this.host = options.host;
         this.events = options.host.eventService;
-        // this.selectionIdBuilder = options.host.createSelectionIdBuilder();
         this.selectionManager = options.host.createSelectionManager();
     }
 
@@ -125,8 +124,8 @@ export class Visual implements IVisual {
         this.settings = Visual.parseSettings(options && options.dataViews && options.dataViews[0]);
         this.svg.selectAll('*').remove();
         let _this = this;
-        let vpWidth = (options.viewport.width - 0);
-        let vpHeight = (options.viewport.height - 110);
+        let vpWidth = options.viewport.width;
+        let vpHeight = this.settings.timeline.layout ? (options.viewport.height - 110) : options.viewport.height;
         this.svg.attr('height', vpHeight);
         this.svg.attr('width', vpWidth);
 
@@ -158,16 +157,20 @@ export class Visual implements IVisual {
         if (this.settings.timeline.layout.toLowerCase() === 'header') {
             this.header
                 .html(() => {
-                    return '<img src="' + _this.settings.timeline.imgUrl + '"/>';
+                    return '<img src="' + this.settings.timeline.imgUrl + '"/>';
                 });
             this.footer.remove();
         }
-        else {
+        else if (this.settings.timeline.layout.toLowerCase() === 'footer') {
             this.footer
                 .html(() => {
-                    return '<img src="' + _this.settings.timeline.imgUrl + '"/>';
+                    return '<img src="' + this.settings.timeline.imgUrl + '"/>';
                 });
             this.header.remove();
+        }
+        else {
+            this.header.remove();
+            this.footer.remove();
         }
 
         this.renderXandYAxis(minDate, maxDate, gWidth, gHeight);
@@ -178,7 +181,19 @@ export class Visual implements IVisual {
 
         this.renderXAxisCirclesAndQuarters();
 
-        this.renderTimeRangeLines(gHeight, timelineData);
+        if (this.settings.timeline.layout) {
+            this.renderTimeRangeLines(gHeight, timelineData);
+        }
+        else {
+            this.renderTimeRangeLinesWithoutLayout(gHeight, timelineData);
+        }
+
+        if (this.settings.timeline.layout) {
+            this.renderGBox(timelineData);
+        }
+        else {
+            this.renderGBoxWithoutLayout(timelineData);
+        }
 
         this.renderCircles(timelineData, titleColorData);
 
@@ -519,8 +534,105 @@ export class Visual implements IVisual {
             });
     }
 
-    private renderCircles(timelineData, titleColorData) {
-        let _this = this;
+    private renderTimeRangeLinesWithoutLayout(gHeight, timelineData) {
+        this.svg.selectAll(".line")
+            .data(timelineData)
+            .enter()
+            .append("rect")
+            .attr("x", (d: any, i) => {
+                return this.xScale(d.EventStartDate) + 20;
+            })
+            .attr("width", '8px')
+            .attr("y", (d, i) => {
+                if (i % 2 === 0) {
+                    return this.yScale(-31);
+                } else {
+                    let count = Math.ceil(i / 2);
+                    if (count % 2 === 0) {
+                        return this.yScale(58);
+                    } else {
+                        return this.yScale(13);
+                    }
+                }
+            })
+            .attr("height", (d, i) => {
+                if (i % 2 === 0) {
+                    let count = i / 2;
+                    if (count % 2 === 0) {
+                        return gHeight - this.yScale(-35);
+                    }
+                    else {
+                        return gHeight - this.yScale(-80);
+                    }
+                } else {
+                    let count = Math.ceil(i / 2);
+                    if (count % 2 === 0) {
+                        return gHeight - this.yScale(-35);
+                    }
+                    else {
+                        return gHeight - this.yScale(-80);
+                    }
+                }
+            })
+            .style('fill', (d: any, i) => {
+                if (i % 2 === 0) {
+                    return 'url(#linearGradientTopToBottom' + d.Title.replace(/ /g, "") + ')';
+                }
+                else {
+                    return 'url(#linearGradientBottomToTop' + d.Title.replace(/ /g, "") + ')';
+                }
+            });
+
+        this.svg.selectAll(".line")
+            .data(timelineData)
+            .enter()
+            .append("rect")
+            .attr("x", (d: any, i) => {
+                return this.xScale(d.EventEndDate) + 20;
+            })
+            .attr("width", '8px')
+            .attr("y", (d, i) => {
+                if (i % 2 === 0) {
+                    return this.yScale(-31);
+                } else {
+                    let count = Math.ceil(i / 2);
+                    if (count % 2 === 0) {
+                        return this.yScale(58);
+                    } else {
+                        return this.yScale(13);
+                    }
+                }
+            })
+            .attr("height", (d, i) => {
+                if (i % 2 === 0) {
+                    let count = i / 2;
+                    if (count % 2 === 0) {
+                        return gHeight - this.yScale(-35);
+                    }
+                    else {
+                        return gHeight - this.yScale(-80);
+                    }
+                } else {
+                    let count = Math.ceil(i / 2);
+                    if (count % 2 === 0) {
+                        return gHeight - this.yScale(-35);
+                    }
+                    else {
+                        return gHeight - this.yScale(-80);
+                    }
+                }
+            })
+            .style('fill', (d: any, i) => {
+                if (i % 2 === 0) {
+                    return 'url(#linearGradientTopToBottom' + d.Title.replace(/ /g, "") + ')';
+                }
+                else {
+                    return 'url(#linearGradientBottomToTop' + d.Title.replace(/ /g, "") + ')';
+                }
+            });
+    }
+
+    private renderGBox(timelineData) {
         this.gbox = this.svg.selectAll(".box")
             .data(timelineData)
             .enter()
@@ -545,7 +657,37 @@ export class Visual implements IVisual {
                 }
                 return 'translate(' + (this.xScale(d.EventStartDate) + 25) + ' ' + y + ')';
             });
+    }
 
+    private renderGBoxWithoutLayout(timelineData) {
+        this.gbox = this.svg.selectAll(".box")
+            .data(timelineData)
+            .enter()
+            .append("g")
+            .attr('fill', '#ffffff')
+            .attr('transform', (d: any, i) => {
+                let y;
+                if ((i % 2) === 0) {
+                    let count = i / 2;
+                    if (count % 2 === 0) {
+                        y = this.yScale(-117);
+                    } else {
+                        y = this.yScale(-73);
+                    }
+                } else {
+                    let count = Math.ceil(i / 2);
+                    if (count % 2 === 0) {
+                        y = this.yScale(79);
+                    } else {
+                        y = this.yScale(34);
+                    }
+                }
+                return 'translate(' + (this.xScale(d.EventStartDate) + 25) + ' ' + y + ')';
+            });
+    }
+
+    private renderCircles(timelineData, titleColorData) {
+        let _this = this;
 
         this.gbox.selectAll('g')
             .data((d: any, i) => {
