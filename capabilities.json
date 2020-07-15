@@ -19,6 +19,11 @@
             "displayName": "Event End Date",
             "name": "EventEndDate",
             "kind": "Grouping"
+        },
+        {
+            "displayName": "Title Link",
+            "name": "CompanyLink",
+            "kind": "Grouping"
         }
     ],
     "dataViewMappings": [
@@ -45,6 +50,11 @@
                             "for": {
                                 "in": "EventEndDate"
                             }
+                        },
+                        {
+                            "for": {
+                                "in": "CompanyLink"
+                            }
                         }
                     ]
                 },
@@ -68,6 +78,11 @@
                         {
                             "for": {
                                 "in": "EventEndDate"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "CompanyLink"
                             }
                         }
                     ]

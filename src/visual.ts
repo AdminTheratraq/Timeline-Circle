@@ -46,10 +46,11 @@ import { VisualSettings } from "./settings";
 import * as sanitizeHtml from 'sanitize-html';
 
 export interface TimelineData {
-    Title: String;
+    Title: string;
     Description: string;
     EventStartDate: Date;
     EventEndDate: Date;
+    CompanyLink: string;
     selectionId: powerbi.visuals.ISelectionId;
 }
 
@@ -803,15 +804,15 @@ export class Visual implements IVisual {
                         currentStroke = d3.select(n[i]).select('ellipse').attr('stroke');
                         currentStrokeWidth = d3.select(n[i]).select('ellipse').attr('stroke-width');
                         d3.select(n[i]).select('ellipse')
-                            .attr('stroke', 'red')
-                            .attr('stroke-width', 5);
+                            .attr('stroke', currentStroke)
+                            .attr('stroke-width', 8);
                     }
                     else {
                         currentStroke = d3.select(n[i]).select('a circle').attr('stroke');
                         currentStrokeWidth = d3.select(n[i]).select('a circle').attr('stroke-width');
                         d3.select(n[i]).select('a circle')
-                            .attr('stroke', 'red')
-                            .attr('stroke-width', 5);
+                            .attr('stroke', currentStroke)
+                            .attr('stroke-width', 8);
                     }
                 });
             }
@@ -851,12 +852,13 @@ export class Visual implements IVisual {
     }
 
     private renderText(titleColorData) {
+        // we are not able to use append method instead of html method here since the Description field has the value as HTML (rich text)
         this.gbox.append("foreignObject")
             .html((d: TimelineData) => {
                 let companyColor = titleColorData.find(c => d.Title === c.title);
                 let color = companyColor ? companyColor.color.medium : '#000000';
-                let company = '<div style="color:' + color + ';">' + (d.Title ? sanitizeHtml(d.Title.toString()) : '') + '</div>';
-                return '<div title="' + sanitizeHtml(d.Description) + '">' + company + sanitizeHtml(d.Description) + '</div>';
+                let company = '<div><a href="' + sanitizeHtml(d.CompanyLink) + '" style="color:' + color + ';">' + (d.Title ? sanitizeHtml(d.Title) : '') + '</a></div>';
+                return '<div title="' + this.extractContent(sanitizeHtml(d.Description)) + '">' + company + sanitizeHtml(d.Description) + '</div>';
             })
             .attr('x', (d: TimelineData) => {
                 if (d.EventStartDate.getTime() === d.EventEndDate.getTime()) {
@@ -914,13 +916,21 @@ export class Visual implements IVisual {
             .attr('fill', 'transparent');
     }
 
+    private extractContent(str) {
+        if ((str === null) || (str === ''))
+            return false;
+        else
+            str = str.toString();
+        return str.replace(/(<([^>]+)>)/ig, '');
+    }
+
     // converter to table data
     public static CONVERTER(dataView: DataView, host: IVisualHost): TimelineData[] {
         let resultData: TimelineData[] = [];
         let tableView = dataView.table;
         let _rows = tableView.rows;
         let _columns = tableView.columns;
-        let _titleIndex = -1, _typeIndex = -1, _descIndex = -1, _startDateIndex = -1, _endDateIndex = -1, _moaIndex = -1, _regionIndex, _productIndex;
+        let _titleIndex = -1, _typeIndex = -1, _descIndex = -1, _startDateIndex = -1, _endDateIndex = -1, _companyLinkIndex = -1;
         for (let ti = 0; ti < _columns.length; ti++) {
             if (_columns[ti].roles.hasOwnProperty("Title")) {
                 _titleIndex = ti;
@@ -930,6 +940,8 @@ export class Visual implements IVisual {
                 _startDateIndex = ti;
             } else if (_columns[ti].roles.hasOwnProperty("EventEndDate")) {
                 _endDateIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("CompanyLink")) {
+                _companyLinkIndex = ti;
             }
         }
         for (let i = 0; i < _rows.length; i++) {
@@ -939,6 +951,7 @@ export class Visual implements IVisual {
                 Description: row[_descIndex] ? row[_descIndex].toString() : null,
                 EventStartDate: row[_startDateIndex] ? new Date(Date.parse(row[_startDateIndex].toString())) : null,
                 EventEndDate: row[_endDateIndex] ? new Date(Date.parse(row[_endDateIndex].toString())) : null,
+                CompanyLink: row[_companyLinkIndex] ? row[_companyLinkIndex].toString() : null,
                 selectionId: host.createSelectionIdBuilder()
                     .withTable(tableView, i)
                     .createSelectionId()
