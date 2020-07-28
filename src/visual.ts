@@ -157,16 +157,14 @@ export class Visual implements IVisual {
 
         if (this.settings.timeline.layout.toLowerCase() === 'header') {
             this.header
-                .html(() => {
-                    return '<img src="' + this.settings.timeline.imgUrl + '"/>';
-                });
+                .append('img')
+                .attr('src', this.settings.timeline.imgUrl);
             this.footer.remove();
         }
         else if (this.settings.timeline.layout.toLowerCase() === 'footer') {
             this.footer
-                .html(() => {
-                    return '<img src="' + this.settings.timeline.imgUrl + '"/>';
-                });
+                .append('img')
+                .attr('src', this.settings.timeline.imgUrl);
             this.header.remove();
         }
         else {
