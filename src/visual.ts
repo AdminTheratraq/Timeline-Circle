@@ -112,9 +112,9 @@ export class Visual implements IVisual {
     constructor(options: VisualConstructorOptions) {
         console.log('Visual Constructor', options);
         this.target = d3.select(options.element);
-        this.header = d3.select(options.element).append('div').attr('class', 'header');
+        this.header = d3.select(options.element).append('div');
         this.svg = d3.select(options.element).append('svg');
-        this.footer = d3.select(options.element).append('div').attr('class', 'footer');
+        this.footer = d3.select(options.element).append('div');
         this.host = options.host;
         this.events = options.host.eventService;
         this.selectionManager = options.host.createSelectionManager();
@@ -161,19 +161,25 @@ export class Visual implements IVisual {
         let [timeline] = timelineData;
         if (this.settings.timeline.layout.toLowerCase() === 'header') {
             this.header
+                .attr('class', 'header')
                 .append('img')
                 .attr('src', validDataUrl(timeline.HeaderImage) ? timeline.HeaderImage : '');
-            this.footer.remove();
+            this.footer.selectAll('img').remove();
+            this.footer.classed('footer', false);
         }
         else if (this.settings.timeline.layout.toLowerCase() === 'footer') {
             this.footer
+                .attr('class', 'footer')
                 .append('img')
                 .attr('src', validDataUrl(timeline.FooterImage) ? timeline.FooterImage : '');
-            this.header.remove();
+            this.header.selectAll('img').remove();
+            this.header.classed('header', false);
         }
         else {
-            this.header.remove();
-            this.footer.remove();
+            this.header.selectAll('img').remove();
+            this.header.classed('header', false);
+            this.footer.selectAll('img').remove();
+            this.footer.classed('footer', false);
         }
 
         this.renderXandYAxis(minDate, maxDate, gWidth, gHeight);
