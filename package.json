@@ -16,7 +16,8 @@
     "d3plus": "^1.9.8",
     "powerbi-visuals-api": "~2.6.0",
     "powerbi-visuals-utils-dataviewutils": "^2.2.0",
-    "sanitize-html": "^1.22.1"
+    "sanitize-html": "^1.22.1",
+    "valid-data-url": "^3.0.0"
   },
   "devDependencies": {
     "ts-loader": "5.2.2",

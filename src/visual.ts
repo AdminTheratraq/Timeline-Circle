@@ -44,6 +44,7 @@ import ISelectionId = powerbi.visuals.ISelectionId;
 import * as d3 from 'd3';
 import { VisualSettings } from "./settings";
 import * as sanitizeHtml from 'sanitize-html';
+import * as validDataUrl from 'valid-data-url';
 
 export interface TimelineData {
     Title: string;
@@ -51,6 +52,8 @@ export interface TimelineData {
     EventStartDate: Date;
     EventEndDate: Date;
     CompanyLink: string;
+    HeaderImage: string;
+    FooterImage: string;
     selectionId: powerbi.visuals.ISelectionId;
 }
 
@@ -155,16 +158,17 @@ export class Visual implements IVisual {
             };
         });
 
+        let [timeline] = timelineData;
         if (this.settings.timeline.layout.toLowerCase() === 'header') {
             this.header
                 .append('img')
-                .attr('src', this.settings.timeline.imgUrl);
+                .attr('src', validDataUrl(timeline.HeaderImage) ? timeline.HeaderImage : '');
             this.footer.remove();
         }
         else if (this.settings.timeline.layout.toLowerCase() === 'footer') {
             this.footer
                 .append('img')
-                .attr('src', this.settings.timeline.imgUrl);
+                .attr('src', validDataUrl(timeline.FooterImage) ? timeline.FooterImage : '');
             this.header.remove();
         }
         else {
@@ -928,7 +932,8 @@ export class Visual implements IVisual {
         let tableView = dataView.table;
         let _rows = tableView.rows;
         let _columns = tableView.columns;
-        let _titleIndex = -1, _typeIndex = -1, _descIndex = -1, _startDateIndex = -1, _endDateIndex = -1, _companyLinkIndex = -1;
+        let _titleIndex = -1, _descIndex = -1, _startDateIndex = -1, _endDateIndex = -1, _companyLinkIndex = -1,
+            _headerImageIndex = -1, _footerImageIndex = -1;
         for (let ti = 0; ti < _columns.length; ti++) {
             if (_columns[ti].roles.hasOwnProperty("Title")) {
                 _titleIndex = ti;
@@ -940,6 +945,10 @@ export class Visual implements IVisual {
                 _endDateIndex = ti;
             } else if (_columns[ti].roles.hasOwnProperty("CompanyLink")) {
                 _companyLinkIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("HeaderImage")) {
+                _headerImageIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("FooterImage")) {
+                _footerImageIndex = ti;
             }
         }
         for (let i = 0; i < _rows.length; i++) {
@@ -950,6 +959,8 @@ export class Visual implements IVisual {
                 EventStartDate: row[_startDateIndex] ? new Date(Date.parse(row[_startDateIndex].toString())) : null,
                 EventEndDate: row[_endDateIndex] ? new Date(Date.parse(row[_endDateIndex].toString())) : null,
                 CompanyLink: row[_companyLinkIndex] ? row[_companyLinkIndex].toString() : null,
+                HeaderImage: row[_headerImageIndex] ? row[_headerImageIndex].toString() : null,
+                FooterImage: row[_footerImageIndex] ? row[_footerImageIndex].toString() : null,
                 selectionId: host.createSelectionIdBuilder()
                     .withTable(tableView, i)
                     .createSelectionId()

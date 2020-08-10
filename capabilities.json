@@ -24,6 +24,16 @@
             "displayName": "Title Link",
             "name": "CompanyLink",
             "kind": "Grouping"
+        },
+        {
+            "displayName": "Header Image",
+            "name": "HeaderImage",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Footer Image",
+            "name": "FooterImage",
+            "kind": "Grouping"
         }
     ],
     "dataViewMappings": [
@@ -55,6 +65,16 @@
                             "for": {
                                 "in": "CompanyLink"
                             }
+                        },
+                        {
+                            "for": {
+                                "in": "HeaderImage"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "FooterImage"
+                            }
                         }
                     ]
                 },
@@ -84,6 +104,16 @@
                             "for": {
                                 "in": "CompanyLink"
                             }
+                        },
+                        {
+                            "for": {
+                                "in": "HeaderImage"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "FooterImage"
+                            }
                         }
                     ]
                 }
@@ -102,12 +132,6 @@
                 },
                 "layout": {
                     "displayName": "Layout",
-                    "type": {
-                        "text": true
-                    }
-                },
-                "imgUrl": {
-                    "displayName": "Image URL",
                     "type": {
                         "text": true
                     }

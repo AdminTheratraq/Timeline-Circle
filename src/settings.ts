@@ -38,8 +38,6 @@ export class TimelineSettings {
 
   public layout: string = "";
 
-  public imgUrl: string = "";
-
   public circleBackground: string = "opaque";
 }
 
