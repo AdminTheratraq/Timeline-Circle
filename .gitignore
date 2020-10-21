@@ -8,3 +8,4 @@ typings
 .vscode
 
 webpack.statistics.*.html
+/.vs
