@@ -45,6 +45,7 @@ import * as d3 from "d3";
 import { VisualSettings } from "./settings";
 import * as sanitizeHtml from "sanitize-html";
 import * as validDataUrl from "valid-data-url";
+import { color } from "d3";
 
 export interface TimelineData {
   Title: string;
@@ -175,26 +176,27 @@ export class Visual implements IVisual {
         timelineData.map((d) => d.EventStartDate)
       )
     );
-    maxDate = new Date(
-      Math.max.apply(
-        null,
-        timelineData.map((d) => d.EventEndDate)
-      )
-    );
+    maxDate = new Date(Math.max.apply(null,timelineData.map((d) => d.EventEndDate)));
     minDate = new Date(minDate.getFullYear(), 0, 1);
     maxDate = new Date(maxDate.getFullYear() + 1, 0, 1);
 
     let colors = this.getColors();
 
-    let titleData = timelineData
-      .map((d) => d.Title)
-      .filter((v, i, self) => self.indexOf(v) === i);
+    let titleData = timelineData.map((d) => d.Title).filter((v, i, self) => self.indexOf(v) === i);
 
     let titleColorData = titleData.map((d, i) => {
-      return {
-        title: d,
-        color: colors[i],
-      };
+      if (colors[i]) {
+        return {
+          title: d,
+          color: colors[i],
+        };
+      } else {
+        let randomNumber:number = this.getRandomNumberBetween(0, 29);
+        return {
+          title: d,
+          color: colors[randomNumber]
+        }
+      }
     });
 
     this.renderHeaderAndFooter(timelineData);
@@ -240,8 +242,20 @@ export class Visual implements IVisual {
     }
   }
 
+  private getRandomNumberBetween(min,max){
+    // Create byte array and fill with 1 random number
+    var byteArray = new Uint8Array(1);
+    window.crypto.getRandomValues(byteArray);
+
+    var range = max - min + 1;
+    var max_range = 256;
+    if (byteArray[0] >= Math.floor(max_range / range) * range)
+        return this.getRandomNumberBetween(min, max);
+    return min + (byteArray[0] % range);
+  }
+
   private getColors() {
-    return [{"dark":"#3F5003","light":"#D0E987","medium":"#AFD045"},{"dark":"#252D48","light":"#81909F","medium":"#3B4D64"},{"dark":"#8D4F0F","light":"#D8A26D","medium":"#C87825"},{"dark":"#337779","light":"#B2DFE0","medium":"#6FCBCC"},{"dark":"#003366","light":"#66ffff","medium":"#4791AE"},{"dark":"rgba(49, 27, 146,1)","light":"rgba(49, 27, 146,0.2)","medium":"rgba(49, 27, 146,0.5)"},{"dark":"rgba(245, 127, 23,1)","light":"rgba(245, 127, 23,0.2)","medium":"rgba(245, 127, 23,0.5)"},{"dark":"rgba(183, 28, 28,1)","light":"rgba(183, 28, 28,0.2)","medium":"rgba(183, 28, 28,0.5)"},{"dark":"rgba(136, 14, 79,1)","light":"rgba(136, 14, 79,0.2)","medium":"rgba(136, 14, 79,0.5)"},{"dark":"rgba(27, 94, 32,1)","light":"rgba(27, 94, 32,0.2)","medium":"rgba(27, 94, 32,0.5)"},{"dark":"rgba(255, 0, 0,1)","light":"rgba(255, 0, 0,0.2)","medium":"rgba(255, 0, 0,0.5)"},{"dark":"rgba(0, 0, 255,1)","light":"rgba(0, 0, 255,0.2)","medium":"rgba(0, 0, 255,0.5)"},{"dark":"rgba(0, 255, 0,1)","light":"rgba(0, 255, 0,0.2)","medium":"rgba(0, 255, 0,0.5)"},{"dark":"rgba(94, 89, 27,1)","light":"rgba(94, 89, 27,0.2)","medium":"rgba(94, 89, 27,0.5)"},{"dark":"rgba(27, 94, 91,1)","light":"rgba(27, 94, 91,0.2)","medium":"rgba(27, 94, 91,0.5)"},{"dark":"rgba(11, 101, 153,1)","light":"rgba(11, 101, 153,0.2)","medium":"rgba(11, 101, 153,0.5)"},{"dark":"rgba(11, 45, 153,1)","light":"rgba(11, 45, 153,0.2)","medium":"rgba(11, 45, 153,0.5)"},{"dark":"rgba(114, 11, 153,1)","light":"rgba(114, 11, 153,0.2)","medium":"rgba(114, 11, 153,0.5)"},{"dark":"rgba(153, 11, 134,1)","light":"rgba(153, 11, 134,0.2)","medium":"rgba(153, 11, 134,0.5)"},{"dark":"rgba(249, 5, 134,1)","light":"rgba(249, 5, 134,0.2)","medium":"rgba(249, 5, 134,0.5)"}];
+    return [{"dark":"#3F5003","light":"#D0E987","medium":"#AFD045"},{"dark":"#252D48","light":"#81909F","medium":"#3B4D64"},{"dark":"#8D4F0F","light":"#D8A26D","medium":"#C87825"},{"dark":"#337779","light":"#B2DFE0","medium":"#6FCBCC"},{"dark":"#003366","light":"#66ffff","medium":"#4791AE"},{"dark":"rgba(49, 27, 146,1)","light":"rgba(49, 27, 146,0.2)","medium":"rgba(49, 27, 146,0.5)"},{"dark":"rgba(245, 127, 23,1)","light":"rgba(245, 127, 23,0.2)","medium":"rgba(245, 127, 23,0.5)"},{"dark":"rgba(183, 28, 28,1)","light":"rgba(183, 28, 28,0.2)","medium":"rgba(183, 28, 28,0.5)"},{"dark":"rgba(136, 14, 79,1)","light":"rgba(136, 14, 79,0.2)","medium":"rgba(136, 14, 79,0.5)"},{"dark":"rgba(27, 94, 32,1)","light":"rgba(27, 94, 32,0.2)","medium":"rgba(27, 94, 32,0.5)"},{"dark":"rgba(255, 0, 0,1)","light":"rgba(255, 0, 0,0.2)","medium":"rgba(255, 0, 0,0.5)"},{"dark":"rgba(0, 0, 255,1)","light":"rgba(0, 0, 255,0.2)","medium":"rgba(0, 0, 255,0.5)"},{"dark":"rgba(0, 255, 0,1)","light":"rgba(0, 255, 0,0.2)","medium":"rgba(0, 255, 0,0.5)"},{"dark":"rgba(94, 89, 27,1)","light":"rgba(94, 89, 27,0.2)","medium":"rgba(94, 89, 27,0.5)"},{"dark":"rgba(27, 94, 91,1)","light":"rgba(27, 94, 91,0.2)","medium":"rgba(27, 94, 91,0.5)"},{"dark":"rgba(11, 101, 153,1)","light":"rgba(11, 101, 153,0.2)","medium":"rgba(11, 101, 153,0.5)"},{"dark":"rgba(11, 45, 153,1)","light":"rgba(11, 45, 153,0.2)","medium":"rgba(11, 45, 153,0.5)"},{"dark":"rgba(114, 11, 153,1)","light":"rgba(114, 11, 153,0.2)","medium":"rgba(114, 11, 153,0.5)"},{"dark":"rgba(153, 11, 134,1)","light":"rgba(153, 11, 134,0.2)","medium":"rgba(153, 11, 134,0.5)"},{"dark":"rgba(249, 5, 134,1)","light":"rgba(249, 5, 134,0.2)","medium":"rgba(249, 5, 134,0.5)"},{"dark":"#800000","light":"#ff8080","medium":"#ff3333"},{"dark":"#808000","light":"#ffff80","medium":"#e6e600"},{"dark":"#a0522d","light":"#e3b29c","medium":"#d28460"},{"dark":"#2f4f4f","light":"#afcfcf","medium":"#70a9a9"},{"dark":"#ff4500","light":"#ff8f66","medium":"#ff6933"},{"dark":"#cf6363","light":"#e7b1b1","medium":"#db8a8a"},{"dark":"#99cd32","light":"#cce698","medium":"#aed75b"},{"dark":"#3f000f","light":"#ff809d","medium":"#ff003c"},{"dark":"#2e8b57","light":"#9fdfbb","medium":"#53c685"},{"dark":"#00cccc","light":"#99ffff","medium":"#33ffff"}];
   }
 
   private renderXandYAxis(minDate, maxDate, gWidth, gHeight) {
@@ -329,7 +343,8 @@ export class Visual implements IVisual {
     let svgDefs = this.svg.append("defs");
 
     titleColorData.forEach((c, i) => {
-      let linearGradientTopToBottom = svgDefs
+      if (c.color){
+        let linearGradientTopToBottom = svgDefs
         .append("linearGradient")
         .attr("x2", "0%")
         .attr("y2", "100%")
@@ -360,6 +375,7 @@ export class Visual implements IVisual {
         .append("stop")
         .attr("stop-color", c.color.dark)
         .attr("offset", "1");
+      }
     });
   }
 
@@ -706,7 +722,7 @@ export class Visual implements IVisual {
       .attr("r", 40)
       .attr("stroke", (d: TimelineData) => {
         let companyColor = titleColorData.find((c) => d.Title === c.title);
-        return companyColor ? companyColor.color.light : "#000000";
+        return companyColor.color ? companyColor.color.light : "#000000";
       })
       .attr("stroke-width", 2)
       .attr("fill", (d) => {
@@ -752,7 +768,7 @@ export class Visual implements IVisual {
       .attr("r", 45)
       .attr("stroke", (d: TimelineData) => {
         let companyColor = titleColorData.find((c) => d.Title === c.title);
-        return companyColor ? companyColor.color.medium : "#000000";
+        return companyColor.color ? companyColor.color.medium : "#000000";
       })
       .attr("stroke-width", 4)
       .attr("fill", (d) => {
@@ -889,7 +905,7 @@ export class Visual implements IVisual {
       .append("foreignObject")
       .html((d: TimelineData) => {
         let companyColor = titleColorData.find((c) => d.Title === c.title);
-        let color = companyColor ? companyColor.color.medium : "#000000";
+        let color = companyColor.color ? companyColor.color.medium : "#000000";
         let company =
           '<div><a href="' +
           sanitizeHtml(d.CompanyLink) +
