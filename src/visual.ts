@@ -439,13 +439,13 @@ export class Visual implements IVisual {
       .attr("width", "8px")
       .attr("y", (d, i) => {
         if (i % 2 === 0) {
-          return this.yScale(-30);
+          return this.yScale(-29);
         } else {
           let count = Math.ceil(i / 2);
           if (count % 2 === 0) {
-            return this.yScale(50);
+            return this.yScale(49);
           } else {
-            return this.yScale(10);
+            return this.yScale(9);
           }
         }
       })
@@ -488,13 +488,13 @@ export class Visual implements IVisual {
       .attr("width", "8px")
       .attr("y", (d, i) => {
         if (i % 2 === 0) {
-          return this.yScale(-30);
+          return this.yScale(-29);
         } else {
           let count = Math.ceil(i / 2);
           if (count % 2 === 0) {
-            return this.yScale(50);
+            return this.yScale(49);
           } else {
-            return this.yScale(10);
+            return this.yScale(9);
           }
         }
       })
