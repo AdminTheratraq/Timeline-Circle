@@ -25,6 +25,7 @@
  */
 "use strict";
 
+import "regenerator-runtime/runtime";
 import "core-js/stable";
 import "./../style/visual.less";
 import powerbi from "powerbi-visuals-api";
@@ -36,16 +37,13 @@ import VisualObjectInstance = powerbi.VisualObjectInstance;
 import DataView = powerbi.DataView;
 import VisualObjectInstanceEnumerationObject = powerbi.VisualObjectInstanceEnumerationObject;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
-import DataViewObjects = powerbi.DataViewObjects;
 import IVisualEventService = powerbi.extensibility.IVisualEventService;
-import ISelectionIdBuilder = powerbi.extensibility.ISelectionIdBuilder;
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import ISelectionId = powerbi.visuals.ISelectionId;
 import * as d3 from "d3";
 import { VisualSettings } from "./settings";
 import * as sanitizeHtml from "sanitize-html";
 import * as validDataUrl from "valid-data-url";
-import { color } from "d3";
 
 export interface TimelineData {
   Title: string;
@@ -62,43 +60,6 @@ export interface Timelines {
   Timeline: TimelineData[];
 }
 
-export function logExceptions(): MethodDecorator {
-  return (
-    target: Object,
-    propertyKey: string,
-    descriptor: TypedPropertyDescriptor<any>
-  ): TypedPropertyDescriptor<any> => {
-    return {
-      value: function () {
-        try {
-          return descriptor.value.apply(this, arguments);
-        } catch (e) {
-          throw e;
-        }
-      },
-    };
-  };
-}
-
-export function getCategoricalObjectValue<T>(
-  objects: DataViewObjects,
-  index: number,
-  objectName: string,
-  propertyName: string,
-  defaultValue: T
-): T {
-  if (objects) {
-    let object = objects[objectName];
-    if (object) {
-      let property: T = <T>object[propertyName];
-      if (property !== undefined) {
-        return property;
-      }
-    }
-  }
-  return defaultValue;
-}
-
 export class Visual implements IVisual {
   private target: d3.Selection<HTMLElement, any, any, any>;
   private header: d3.Selection<HTMLElement, any, any, any>;
@@ -107,7 +68,6 @@ export class Visual implements IVisual {
   private margin = { top: 50, right: 40, bottom: 50, left: 40 };
   private settings: VisualSettings;
   private host: IVisualHost;
-  private initLoad = false;
   private events: IVisualEventService;
   private xScale: d3.ScaleTime<number, number>;
   private yScale: d3.ScaleLinear<number, number>;
@@ -125,7 +85,6 @@ export class Visual implements IVisual {
     this.selectionManager = options.host.createSelectionManager();
   }
 
-  @logExceptions()
   public update(options: VisualUpdateOptions) {
     this.events.renderingStarted(options);
     this.settings = Visual.parseSettings(
@@ -168,28 +127,34 @@ export class Visual implements IVisual {
 
     let timelineData = Visual.CONVERTER(options.dataViews[0], this.host);
     timelineData = timelineData.slice(0, 100);
-    let minDate, maxDate, currentDate;
-    let timelineLocalData: TimelineData[] = [];
-    currentDate = new Date();
+    let minDate, maxDate, currentDate, minyear, maxyear, previousyear, futureyear, timelineLocalData: TimelineData[] = [];
+    currentDate = new Date(); 
 
     if (timelineData.length > 0) {
-      minDate = new Date(currentDate.getFullYear() - 1, 0, 1);
-      timelineLocalData = timelineData.map<TimelineData>((d) => { if (d.EventStartDate.getFullYear() >= minDate.getFullYear()) { return d;} }).filter(e => e);
-      maxDate = new Date(currentDate.getFullYear() + 8, 0, 1);
-      timelineLocalData = timelineLocalData.map<TimelineData>((d) => { if (d.EventEndDate.getFullYear() <= maxDate.getFullYear()) { return d; } }).filter(e => e);
+      minDate = new Date(Math.min.apply(null,timelineData.map((d) => d.EventStartDate)));
+      maxDate = new Date(Math.max.apply(null, timelineData.map((d) => d.EventEndDate)));
+      minyear = minDate.getFullYear();
+      maxyear = maxDate.getFullYear();
+      if (maxyear > minyear) {
+        previousyear = currentDate.getFullYear() - 1;
+        futureyear = currentDate.getFullYear() + 8;
+        if (minyear >= previousyear && maxyear <= futureyear) {
+          minDate = new Date(previousyear, 0, 1);
+          timelineLocalData = timelineData.map<TimelineData>((d) => { if (d.EventStartDate.getFullYear() >= minDate.getFullYear()) { return d;} }).filter(e => e);
+          maxDate = new Date(futureyear, 0, 1);
+          timelineLocalData = timelineLocalData.map<TimelineData>((d) => { if (d.EventEndDate.getFullYear() <= maxDate.getFullYear()) { return d; } }).filter(e => e);
+        }
+      }
     }
 
     if (timelineLocalData.length > 0) {
       timelineData = timelineLocalData;
     } else if (timelineLocalData.length == 0) {
-      minDate = new Date(Math.min.apply(null,timelineData.map((d) => d.EventStartDate)));
-      maxDate = new Date(Math.max.apply(null, timelineData.map((d) => d.EventEndDate)));
       minDate = new Date(minDate.getFullYear(), 0, 1);
       maxDate = new Date(maxDate.getFullYear() + 1, 0, 1);
     }
 
     let colors = this.getColors();
-
     let titleData = timelineData.map((d) => d.Title).filter((v, i, self) => self.indexOf(v) === i);
 
     let titleColorData = titleData.map((d, i) => {
@@ -205,7 +170,6 @@ export class Visual implements IVisual {
     this.renderTitle(vpWidth);
     this.defineSVGDefs(titleColorData);
     this.renderXAxisCirclesAndQuarters();
-
     if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
       this.renderTimeRangeLines(gHeight, timelineData);
       this.renderGBox(timelineData);
@@ -428,6 +392,27 @@ export class Visual implements IVisual {
   }
 
   private renderTimeRangeLines(gHeight, timelineData) {
+
+    let yscale = -29;
+    
+    if (gHeight > 500) {
+      yscale = -29.5;
+    } else if (gHeight > 480) {
+      yscale = -30.5;
+    } else if (gHeight > 460) {
+      yscale = -321.5;
+    } else if (gHeight > 440) {
+      yscale = -32.5;
+    } else if (gHeight > 420) {
+      yscale = -33.5;
+    } else if (gHeight > 400) {
+      yscale = -35;
+    } else if (gHeight > 380) {
+      yscale = -37;
+    } else if (gHeight > 340) {
+      yscale = -39;
+    }
+
     this.svg
       .selectAll(".line")
       .data(timelineData)
@@ -439,7 +424,7 @@ export class Visual implements IVisual {
       .attr("width", "8px")
       .attr("y", (d, i) => {
         if (i % 2 === 0) {
-          return this.yScale(-29);
+          return this.yScale(yscale);
         } else {
           let count = Math.ceil(i / 2);
           if (count % 2 === 0) {
@@ -455,56 +440,7 @@ export class Visual implements IVisual {
           if (count % 2 === 0) {
             return gHeight - this.yScale(-45);
           } else {
-            return gHeight - this.yScale(-85);
-          }
-        } else {
-          let count = Math.ceil(i / 2);
-          if (count % 2 === 0) {
-            return gHeight - this.yScale(-45);
-          } else {
-            return gHeight - this.yScale(-85);
-          }
-        }
-      })
-      .style("fill", (d: any, i) => {
-        if (i % 2 === 0) {
-          return (
-            "url(#linearGradientTopToBottom" + d.Title.replace(/ /g, "") + ")"
-          );
-        } else {
-          return (
-            "url(#linearGradientBottomToTop" + d.Title.replace(/ /g, "") + ")"
-          );
-        }
-      });
-    this.svg
-      .selectAll(".line")
-      .data(timelineData)
-      .enter()
-      .append("rect")
-      .attr("x", (d: any, i) => {
-        return this.xScale(d.EventEndDate) + 20;
-      })
-      .attr("width", "8px")
-      .attr("y", (d, i) => {
-        if (i % 2 === 0) {
-          return this.yScale(-29);
-        } else {
-          let count = Math.ceil(i / 2);
-          if (count % 2 === 0) {
-            return this.yScale(49);
-          } else {
-            return this.yScale(9);
-          }
-        }
-      })
-      .attr("height", (d, i) => {
-        if (i % 2 === 0) {
-          let count = i / 2;
-          if (count % 2 === 0) {
-            return gHeight - this.yScale(-45);
-          } else {
-            return gHeight - this.yScale(-85);
+            return gHeight - this.yScale(-70);
           }
         } else {
           let count = Math.ceil(i / 2);
@@ -529,6 +465,27 @@ export class Visual implements IVisual {
   }
 
   private renderTimeRangeLinesWithoutLayout(gHeight, timelineData) {
+    
+    let yscale = -23;
+    
+    if (gHeight > 600) {
+      yscale = -23;
+    } else if (gHeight > 580) {
+      yscale = -24.5;
+    } else if (gHeight > 560) {
+      yscale = -26.5;
+    } else if (gHeight > 540) {
+      yscale = -27.5;
+    } else if (gHeight > 520) {
+      yscale = -28.5;
+    } else if (gHeight > 500) {
+      yscale = -29.5;
+    } else if (gHeight > 480) {
+      yscale = -30.5;
+    } else if (gHeight > 440) {
+      yscale = -31.5;
+    }
+
     this.svg
       .selectAll(".line")
       .data(timelineData)
@@ -539,7 +496,7 @@ export class Visual implements IVisual {
       }).attr("width", "8px")
       .attr("y", (d, i) => {
         if (i % 2 === 0) {
-          return this.yScale(-23);
+          return this.yScale(yscale);
         } else {
           let count = Math.ceil(i / 2);
           if (count % 2 === 0) {
@@ -554,7 +511,7 @@ export class Visual implements IVisual {
           if (count % 2 === 0) {
             return gHeight - this.yScale(-35);
           } else {
-            return gHeight - this.yScale(-80);
+            return gHeight - this.yScale(-70);
           }
         } else {
           let count = Math.ceil(i / 2);
@@ -566,52 +523,6 @@ export class Visual implements IVisual {
         }
       })
       .style("fill", (d: any, i) => {
-        if (i % 2 === 0) {
-          return (
-            "url(#linearGradientTopToBottom" + d.Title.replace(/ /g, "") + ")"
-          );
-        } else {
-          return (
-            "url(#linearGradientBottomToTop" + d.Title.replace(/ /g, "") + ")"
-          );
-        }
-      });
-    this.svg
-      .selectAll(".line")
-      .data(timelineData)
-      .enter()
-      .append("rect")
-      .attr("x", (d: any, i) => {
-        return this.xScale(d.EventEndDate) + 20;
-      }).attr("width", "8px")
-      .attr("y", (d, i) => {
-        if (i % 2 === 0) {
-          return this.yScale(-23);
-        } else {
-          let count = Math.ceil(i / 2);
-          if (count % 2 === 0) {
-            return this.yScale(60);
-          } else {
-            return this.yScale(15);
-          }
-        }
-      }).attr("height", (d, i) => {
-        if (i % 2 === 0) {
-          let count = i / 2;
-          if (count % 2 === 0) {
-            return gHeight - this.yScale(-35);
-          } else {
-            return gHeight - this.yScale(-80);
-          }
-        } else {
-          let count = Math.ceil(i / 2);
-          if (count % 2 === 0) {
-            return gHeight - this.yScale(-35);
-          } else {
-            return gHeight - this.yScale(-80);
-          }
-        }
-      }).style("fill", (d: any, i) => {
         if (i % 2 === 0) {
           return (
             "url(#linearGradientTopToBottom" + d.Title.replace(/ /g, "") + ")"
@@ -638,7 +549,7 @@ export class Visual implements IVisual {
           if (count % 2 === 0) {
             y = this.yScale(-100);
           } else {
-            y = this.yScale(-59);
+            y = this.yScale(-74);
           }
         } else {
           let count = Math.ceil(i / 2);
@@ -668,7 +579,7 @@ export class Visual implements IVisual {
           if (count % 2 === 0) {
             y = this.yScale(-97);
           } else {
-            y = this.yScale(-53);
+            y = this.yScale(-63);
           }
         } else {
           let count = Math.ceil(i / 2);
