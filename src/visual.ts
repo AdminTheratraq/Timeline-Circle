@@ -87,30 +87,24 @@ export class Visual implements IVisual {
 
   public update(options: VisualUpdateOptions) {
     this.events.renderingStarted(options);
-    this.settings = Visual.parseSettings(
-      options && options.dataViews && options.dataViews[0]
-    );
+    this.settings = Visual.parseSettings(options && options.dataViews && options.dataViews[0]);
     this.svg.selectAll("*").remove();
     let _this = this;
     let vpWidth = options.viewport.width;
-
     this.header.selectAll("img").remove();
     this.header.classed("header", false);
     this.footer.selectAll("img").remove();
     this.footer.classed("footer", false);
 
     let vpHeight = options.viewport.height;
-
     if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
       vpHeight = options.viewport.height - 105;
     }
 
     this.svg.attr("height", vpHeight);
     this.svg.attr("width", vpWidth);
-
     let gHeight = vpHeight - this.margin.top - this.margin.bottom;
     let gWidth = vpWidth - this.margin.left - this.margin.right;
-
     this.target.on("contextmenu", () => {
       const mouseEvent: MouseEvent = <MouseEvent>d3.event;
       const eventTarget: any = mouseEvent.target;
@@ -124,14 +118,22 @@ export class Visual implements IVisual {
       );
       mouseEvent.preventDefault();
     });
-
     let timelineData = Visual.CONVERTER(options.dataViews[0], this.host);
-    timelineData = timelineData.slice(0, 100);
+    timelineData = timelineData.sort((a, b) => {
+      if (a.EventEndDate && b.EventEndDate) { return a.EventEndDate.getDate() - b.EventEndDate.getDate() }
+      else { return -1; }
+    });
+    timelineData = timelineData.slice(0, this.settings.timeline.maxdata);
+    const eventStartDateDistinctRecords = [...new Set(timelineData.map(event => new Date(event.EventStartDate).getFullYear()))];
+    const eventEndDateDistinctRecords = [...new Set(timelineData.map(event => new Date(event.EventEndDate).getFullYear()))];
     let minDate, maxDate, currentDate, minyear, maxyear, previousyear, futureyear, timelineLocalData: TimelineData[] = [];
-    currentDate = new Date(); 
+    currentDate = new Date();
 
     if (timelineData.length > 0) {
-      minDate = new Date(Math.min.apply(null,timelineData.map((d) => d.EventStartDate)));
+      if (eventStartDateDistinctRecords.length > 1 && eventEndDateDistinctRecords.length === 1) {
+        timelineData = timelineData.filter((e) => ((e.EventStartDate).getFullYear() === eventEndDateDistinctRecords[0]));
+      }
+      minDate = new Date(Math.min.apply(null, timelineData.map((d) => d.EventStartDate)));
       maxDate = new Date(Math.max.apply(null, timelineData.map((d) => d.EventEndDate)));
       minyear = minDate.getFullYear();
       maxyear = maxDate.getFullYear();
@@ -140,29 +142,22 @@ export class Visual implements IVisual {
         futureyear = currentDate.getFullYear() + 8;
         if (minyear >= previousyear && maxyear <= futureyear) {
           minDate = new Date(previousyear, 0, 1);
-          timelineLocalData = timelineData.map<TimelineData>((d) => { if (d.EventStartDate.getFullYear() >= minDate.getFullYear()) { return d;} }).filter(e => e);
+          timelineLocalData = timelineData.map<TimelineData>((d) => { if (d.EventStartDate.getFullYear() >= minDate.getFullYear()) { return d; } }).filter(e => e);
           maxDate = new Date(futureyear, 0, 1);
           timelineLocalData = timelineLocalData.map<TimelineData>((d) => { if (d.EventEndDate.getFullYear() <= maxDate.getFullYear()) { return d; } }).filter(e => e);
         }
       }
     }
-
-    if (timelineLocalData.length > 0) {
-      timelineData = timelineLocalData;
-    } else if (timelineLocalData.length == 0) {
+    if (timelineLocalData.length > 0) { timelineData = timelineLocalData; }
+    else if (timelineLocalData.length == 0) {
       minDate = new Date(minDate.getFullYear(), 0, 1);
       maxDate = new Date(maxDate.getFullYear() + 1, 0, 1);
     }
-
     let colors = this.getColors();
     let titleData = timelineData.map((d) => d.Title).filter((v, i, self) => self.indexOf(v) === i);
-
     let titleColorData = titleData.map((d, i) => {
-      if (colors[i]) { return { title: d, color: colors[i]};
-      } else {
-        let randomNumber: number = this.getRandomNumberBetween(0, 29);
-        return { title: d, color: colors[randomNumber] }
-      }
+      if (colors[i]) { return { title: d, color: colors[i] }; }
+      else { let randomNumber: number = this.getRandomNumberBetween(0, 29); return { title: d, color: colors[randomNumber] } }
     });
 
     this.renderHeaderAndFooter(timelineData);
@@ -394,7 +389,7 @@ export class Visual implements IVisual {
   private renderTimeRangeLines(gHeight, timelineData) {
 
     let yscale = -29;
-    
+
     if (gHeight > 500) {
       yscale = -29.5;
     } else if (gHeight > 480) {
@@ -465,9 +460,9 @@ export class Visual implements IVisual {
   }
 
   private renderTimeRangeLinesWithoutLayout(gHeight, timelineData) {
-    
+
     let yscale = -23;
-    
+
     if (gHeight > 600) {
       yscale = -23;
     } else if (gHeight > 580) {

@@ -38,6 +38,8 @@ export class TimelineSettings {
 
   public layout: string = "";
 
+  public maxdata: number = 1000;
+
   public circleBackground: string = "opaque";
 }
 
