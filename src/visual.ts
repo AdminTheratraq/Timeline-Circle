@@ -74,6 +74,7 @@ export class Visual implements IVisual {
   private gbox: d3.Selection<SVGElement, any, any, any>;
   private colors: any[];
   private selectionManager: ISelectionManager;
+  private isValidEventDate: boolean;
 
   constructor(options: VisualConstructorOptions) {
     this.target = d3.select(options.element);
@@ -119,66 +120,92 @@ export class Visual implements IVisual {
       mouseEvent.preventDefault();
     });
     let timelineData = Visual.CONVERTER(options.dataViews[0], this.host);
-    timelineData = timelineData.sort((a, b) => {
-      if (a.EventEndDate && b.EventEndDate) { return a.EventEndDate.getDate() - b.EventEndDate.getDate() }
-      else { return -1; }
-    });
-    timelineData = timelineData.slice(0, this.settings.timeline.maxdata);
-    const eventStartDateDistinctRecords = [...new Set(timelineData.map(event => new Date(event.EventStartDate).getFullYear()))];
-    const eventEndDateDistinctRecords = [...new Set(timelineData.map(event => new Date(event.EventEndDate).getFullYear()))];
-    let minDate, maxDate, currentDate, minyear, maxyear, previousyear, futureyear, timelineLocalData: TimelineData[] = [];
-    currentDate = new Date();
 
-    if (timelineData.length > 0) {
-      if (eventStartDateDistinctRecords.length > 1 && eventEndDateDistinctRecords.length === 1) {
-        timelineData = timelineData.filter((e) => ((e.EventStartDate).getFullYear() === eventEndDateDistinctRecords[0]));
+      timelineData = timelineData.sort((a, b) => {
+        if (a.EventEndDate && b.EventEndDate) { return a.EventEndDate.getDate() - b.EventEndDate.getDate() }
+        else { return -1; }
+      });
+      timelineData = timelineData.slice(0, this.settings.timeline.maxdata);
+      const eventStartDateDistinctRecords = [...new Set(timelineData.map(event => new Date(event.EventStartDate).getFullYear()))];
+      const eventEndDateDistinctRecords = [...new Set(timelineData.map(event => new Date(event.EventEndDate).getFullYear()))];
+      let minDate, maxDate, currentDate, minyear, maxyear, previousyear, futureyear, timelineLocalData: TimelineData[] = [];
+      currentDate = new Date();
+  
+      if (timelineData.length > 0) {
+        if (eventStartDateDistinctRecords.length > 1 && eventEndDateDistinctRecords.length === 1) {
+          timelineData = timelineData.filter((e) => ((e.EventStartDate).getFullYear() === eventEndDateDistinctRecords[0]));
+        }
+        minDate = new Date(Math.min.apply(null, timelineData.map((d) => d.EventStartDate)));
+        maxDate = new Date(Math.max.apply(null, timelineData.map((d) => d.EventEndDate)));
+        minyear = minDate.getFullYear();
+        maxyear = maxDate.getFullYear();
+        if (maxyear > minyear) {
+          previousyear = currentDate.getFullYear() - 1;
+          futureyear = currentDate.getFullYear() + 8;
+          if (minyear >= previousyear && maxyear <= futureyear) {
+            minDate = new Date(previousyear, 0, 1);
+            timelineLocalData = timelineData.map<TimelineData>((d) => { if (d.EventStartDate.getFullYear() >= minDate.getFullYear()) { return d; } }).filter(e => e);
+            maxDate = new Date(futureyear, 0, 1);
+            timelineLocalData = timelineLocalData.map<TimelineData>((d) => { if (d.EventEndDate.getFullYear() <= maxDate.getFullYear()) { return d; } }).filter(e => e);
+          }
+        }
       }
-      minDate = new Date(Math.min.apply(null, timelineData.map((d) => d.EventStartDate)));
-      maxDate = new Date(Math.max.apply(null, timelineData.map((d) => d.EventEndDate)));
-      minyear = minDate.getFullYear();
-      maxyear = maxDate.getFullYear();
-      if (maxyear > minyear) {
-        previousyear = currentDate.getFullYear() - 1;
-        futureyear = currentDate.getFullYear() + 8;
-        if (minyear >= previousyear && maxyear <= futureyear) {
-          minDate = new Date(previousyear, 0, 1);
-          timelineLocalData = timelineData.map<TimelineData>((d) => { if (d.EventStartDate.getFullYear() >= minDate.getFullYear()) { return d; } }).filter(e => e);
-          maxDate = new Date(futureyear, 0, 1);
-          timelineLocalData = timelineLocalData.map<TimelineData>((d) => { if (d.EventEndDate.getFullYear() <= maxDate.getFullYear()) { return d; } }).filter(e => e);
+      if (timelineLocalData.length > 0) { timelineData = timelineLocalData; }
+      else if (timelineLocalData.length == 0) {
+        minDate = new Date(minDate.getFullYear(), 0, 1);
+        maxDate = new Date(maxDate.getFullYear() + 1, 0, 1);
+      }
+      let colors = this.getColors();
+      let titleData = timelineData.map((d) => d.Title).filter((v, i, self) => self.indexOf(v) === i);
+      let titleColorData = titleData.map((d, i) => {
+        if (colors[i]) { return { title: d, color: colors[i] }; }
+        else { let randomNumber: number = this.getRandomNumberBetween(0, 29); return { title: d, color: colors[randomNumber] } }
+      });
+
+      this.isValidEventDate = true;
+
+    for (let i=0; i< timelineData.length - 1; i++) {
+      if (timelineData[i].EventStartDate.toString() === "Invalid Date") {
+        this.isValidEventDate = false;
+        break;
+      } else if (timelineData[i].EventEndDate.toString() === "Invalid Date") {
+        this.isValidEventDate = false;
+        break;
+      } else if (timelineData[i].EventStartDate || timelineData[i].EventEndDate) {
+        if (timelineData[i].EventStartDate === null && isNaN(timelineData[i].EventEndDate.getTime())) {
+          this.isValidEventDate = false;
+          break;
+        } else if (isNaN(timelineData[i].EventStartDate.getTime()) && timelineData[i].EventEndDate === null) {
+          this.isValidEventDate = false;
+          break;
+        }else if (isNaN(timelineData[i].EventStartDate.getTime()) && isNaN(timelineData[i].EventEndDate.getTime())) {
+          this.isValidEventDate = false;
+          break;
         }
       }
     }
-    if (timelineLocalData.length > 0) { timelineData = timelineLocalData; }
-    else if (timelineLocalData.length == 0) {
-      minDate = new Date(minDate.getFullYear(), 0, 1);
-      maxDate = new Date(maxDate.getFullYear() + 1, 0, 1);
-    }
-    let colors = this.getColors();
-    let titleData = timelineData.map((d) => d.Title).filter((v, i, self) => self.indexOf(v) === i);
-    let titleColorData = titleData.map((d, i) => {
-      if (colors[i]) { return { title: d, color: colors[i] }; }
-      else { let randomNumber: number = this.getRandomNumberBetween(0, 29); return { title: d, color: colors[randomNumber] } }
-    });
 
-    this.renderHeaderAndFooter(timelineData);
-    this.renderXandYAxis(minDate, maxDate, gWidth, gHeight);
-    this.renderTitle(vpWidth);
-    this.defineSVGDefs(titleColorData);
-    this.renderXAxisCirclesAndQuarters();
-    if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
-      this.renderTimeRangeLines(gHeight, timelineData);
-      this.renderGBox(timelineData);
-    } else {
-      this.renderTimeRangeLinesWithoutLayout(gHeight, timelineData);
-      this.renderGBoxWithoutLayout(timelineData);
-    }
+    if (this.isValidEventDate === true) {
+      this.renderHeaderAndFooter(timelineData);
+      this.renderXandYAxis(minDate, maxDate, gWidth, gHeight);
+      this.renderTitle(vpWidth);
+      this.defineSVGDefs(titleColorData);
+      this.renderXAxisCirclesAndQuarters();
+      if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
+        this.renderTimeRangeLines(gHeight, timelineData);
+        this.renderGBox(timelineData);
+      } else {
+        this.renderTimeRangeLinesWithoutLayout(gHeight, timelineData);
+        this.renderGBoxWithoutLayout(timelineData);
+      }
 
-    this.renderCircles(timelineData, titleColorData);
-    this.renderEllipses(titleColorData);
-    this.renderText(titleColorData);
-    this.handleHyperLinkClick();
-    this.renderVisualBorder(vpWidth, vpHeight);
-    this.events.renderingFinished(options);
+      this.renderCircles(timelineData, titleColorData);
+      this.renderEllipses(titleColorData);
+      this.renderText(titleColorData);
+      this.handleHyperLinkClick();
+      this.renderVisualBorder(vpWidth, vpHeight);
+      this.events.renderingFinished(options);
+    }
   }
 
   private renderHeaderAndFooter(timelineData: TimelineData[]) {
