@@ -90,37 +90,28 @@ export class Visual implements IVisual {
     this.events.renderingStarted(options);
     this.settings = Visual.parseSettings(options && options.dataViews && options.dataViews[0]);
     this.svg.selectAll("*").remove();
-    let _this = this;
     let vpWidth = options.viewport.width;
     this.header.selectAll("img").remove();
     this.header.classed("header", false);
     this.footer.selectAll("img").remove();
     this.footer.classed("footer", false);
-
     let vpHeight = options.viewport.height;
-    if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
-      vpHeight = options.viewport.height - 105;
-    }
-
-    this.svg.attr("height", vpHeight);
-    this.svg.attr("width", vpWidth);
-    let gHeight = vpHeight - this.margin.top - this.margin.bottom;
-    let gWidth = vpWidth - this.margin.left - this.margin.right;
-    this.target.on("contextmenu", () => {
-      const mouseEvent: MouseEvent = <MouseEvent>d3.event;
-      const eventTarget: any = mouseEvent.target;
-      let dataPoint: any = d3.select(eventTarget).datum();
-      this.selectionManager.showContextMenu(
-        dataPoint ? dataPoint.selectionId : {},
-        {
-          x: mouseEvent.clientX,
-          y: mouseEvent.clientY,
-        }
-      );
-      mouseEvent.preventDefault();
-    });
-    let timelineData = Visual.CONVERTER(options.dataViews[0], this.host);
-
+    if (options.viewport.height >= 190) {
+      if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
+        vpHeight = options.viewport.height - 105;
+      }
+      this.svg.attr("height", vpHeight);
+      this.svg.attr("width", vpWidth);
+      let gHeight = vpHeight - this.margin.top - this.margin.bottom;
+      let gWidth = vpWidth - this.margin.left - this.margin.right;
+      this.target.on("contextmenu", () => {
+        const mouseEvent: MouseEvent = <MouseEvent>d3.event;
+        const eventTarget: any = mouseEvent.target;
+        let dataPoint: any = d3.select(eventTarget).datum();
+        this.selectionManager.showContextMenu(dataPoint ? dataPoint.selectionId : {}, { x: mouseEvent.clientX, y: mouseEvent.clientY });
+        mouseEvent.preventDefault();
+      });
+      let timelineData = Visual.CONVERTER(options.dataViews[0], this.host);
       timelineData = timelineData.sort((a, b) => {
         if (a.EventEndDate && b.EventEndDate) { return a.EventEndDate.getDate() - b.EventEndDate.getDate() }
         else { return -1; }
@@ -130,11 +121,8 @@ export class Visual implements IVisual {
       const eventEndDateDistinctRecords = [...new Set(timelineData.map(event => new Date(event.EventEndDate).getFullYear()))];
       let minDate, maxDate, currentDate, minyear, maxyear, previousyear, futureyear, timelineLocalData: TimelineData[] = [];
       currentDate = new Date();
-  
       if (timelineData.length > 0) {
-        if (eventStartDateDistinctRecords.length > 1 && eventEndDateDistinctRecords.length === 1) {
-          timelineData = timelineData.filter((e) => ((e.EventStartDate).getFullYear() === eventEndDateDistinctRecords[0]));
-        }
+        if (eventStartDateDistinctRecords.length > 1 && eventEndDateDistinctRecords.length === 1) { timelineData = timelineData.filter((e) => ((e.EventStartDate).getFullYear() === eventEndDateDistinctRecords[0])); }
         minDate = new Date(Math.min.apply(null, timelineData.map((d) => d.EventStartDate)));
         maxDate = new Date(Math.max.apply(null, timelineData.map((d) => d.EventEndDate)));
         minyear = minDate.getFullYear();
@@ -157,54 +145,44 @@ export class Visual implements IVisual {
       }
       let colors = this.getColors();
       let titleData = timelineData.map((d) => d.Title).filter((v, i, self) => self.indexOf(v) === i);
-      let titleColorData = titleData.map((d, i) => {
-        if (colors[i]) { return { title: d, color: colors[i] }; }
-        else { let randomNumber: number = this.getRandomNumberBetween(0, 29); return { title: d, color: colors[randomNumber] } }
+      let titleColorData = titleData.map((d, i) => { if (colors[i]) { return { title: d, color: colors[i] }; } else { let randomNumber: number = this.getRandomNumberBetween(0, 29); return { title: d, color: colors[randomNumber] } }
       });
-
       this.isValidEventDate = true;
-
-    for (let i=0; i< timelineData.length - 1; i++) {
-      if (timelineData[i].EventStartDate.toString() === "Invalid Date") {
-        this.isValidEventDate = false;
-        break;
-      } else if (timelineData[i].EventEndDate.toString() === "Invalid Date") {
-        this.isValidEventDate = false;
-        break;
-      } else if (timelineData[i].EventStartDate || timelineData[i].EventEndDate) {
-        if (timelineData[i].EventStartDate === null && isNaN(timelineData[i].EventEndDate.getTime())) {
-          this.isValidEventDate = false;
-          break;
-        } else if (isNaN(timelineData[i].EventStartDate.getTime()) && timelineData[i].EventEndDate === null) {
-          this.isValidEventDate = false;
-          break;
-        }else if (isNaN(timelineData[i].EventStartDate.getTime()) && isNaN(timelineData[i].EventEndDate.getTime())) {
-          this.isValidEventDate = false;
-          break;
+      for (let i = 0; i < timelineData.length - 1; i++) {
+        if (timelineData[i].EventStartDate.toString() === "Invalid Date") {
+          this.isValidEventDate = false; break;
+        } else if (timelineData[i].EventEndDate.toString() === "Invalid Date") {
+          this.isValidEventDate = false; break;
+        } else if (timelineData[i].EventStartDate || timelineData[i].EventEndDate) {
+          if (timelineData[i].EventStartDate === null && isNaN(timelineData[i].EventEndDate.getTime())) {
+            this.isValidEventDate = false; break;
+          } else if (isNaN(timelineData[i].EventStartDate.getTime()) && timelineData[i].EventEndDate === null) {
+            this.isValidEventDate = false; break;
+          } else if (isNaN(timelineData[i].EventStartDate.getTime()) && isNaN(timelineData[i].EventEndDate.getTime())) {
+            this.isValidEventDate = false; break;
+          }
         }
       }
-    }
-
-    if (this.isValidEventDate === true) {
-      this.renderHeaderAndFooter(timelineData);
-      this.renderXandYAxis(minDate, maxDate, gWidth, gHeight);
-      this.renderTitle(vpWidth);
-      this.defineSVGDefs(titleColorData);
-      this.renderXAxisCirclesAndQuarters();
-      if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
-        this.renderTimeRangeLines(gHeight, timelineData);
-        this.renderGBox(timelineData);
-      } else {
-        this.renderTimeRangeLinesWithoutLayout(gHeight, timelineData);
-        this.renderGBoxWithoutLayout(timelineData);
+      if (this.isValidEventDate === true) {
+        this.renderHeaderAndFooter(timelineData);
+        this.renderXandYAxis(minDate, maxDate, gWidth, gHeight);
+        this.renderTitle(vpWidth);
+        this.defineSVGDefs(titleColorData);
+        this.renderXAxisCirclesAndQuarters();
+        if (this.settings.timeline.layout.toLowerCase() === "header" || this.settings.timeline.layout.toLowerCase() === "footer") {
+          this.renderTimeRangeLines(gHeight, timelineData);
+          this.renderGBox(timelineData);
+        } else {
+          this.renderTimeRangeLinesWithoutLayout(gHeight, timelineData);
+          this.renderGBoxWithoutLayout(timelineData);
+        }
+        this.renderCircles(timelineData, titleColorData);
+        this.renderEllipses(titleColorData);
+        this.renderText(titleColorData);
+        this.handleHyperLinkClick();
+        this.renderVisualBorder(vpWidth, vpHeight);
+        this.events.renderingFinished(options);
       }
-
-      this.renderCircles(timelineData, titleColorData);
-      this.renderEllipses(titleColorData);
-      this.renderText(titleColorData);
-      this.handleHyperLinkClick();
-      this.renderVisualBorder(vpWidth, vpHeight);
-      this.events.renderingFinished(options);
     }
   }
 
